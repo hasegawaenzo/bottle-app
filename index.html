@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ボトル管理</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f2f2f2; }
+    input, button, textarea { padding: 8px; margin: 5px; }
+    input, button, textarea {
+      font-size: 16px;
+    }
+    .entry { background: white; padding: 10px; margin: 5px 0; border-radius: 5px; }
+    .delete-btn { color: red; cursor: pointer; margin-left: 10px; }
+    textarea { vertical-align: middle; resize: vertical; }
+
+    .tab-btn { padding: 10px 20px; cursor: pointer; border: none; background: #ccc; }
+    .tab-btn.active { background: #666; color: white; }
+
+    .section { display: none; }
+    .section.active { display: block; margin-top: 20px; }
+
+    @media (max-width: 600px) {
+      input, button, textarea {
+        width: 100%;
+        box-sizing: border-box;
+        margin: 8px 0;
+      }
+
+      .tab-btn {
+        width: 50%;
+        font-size: 16px;
+      }
+
+      .entry {
+        font-size: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>ボトル管理</h1>
+
+  <!-- タブ切り替えボタン -->
+  <div>
+    <button class="tab-btn active" onclick="showSection('search')">🔍 検索</button>
+    <button class="tab-btn" onclick="showSection('register')">📝 登録</button>
+  </div>
+
+  <!-- 検索画面 -->
+  <div id="search" class="section active">
+    <h3>お客様で検索</h3>
+    <input type="text" id="searchInput" placeholder="名前で検索" oninput="loadEntries()">
+    <h2>一覧</h2>
+    <div id="list"></div>
+  </div>
+
+  <!-- 登録画面 -->
+  <div id="register" class="section">
+    <h3>新規登録</h3>
+    <input type="text" id="name" placeholder="お客様の名前"><br>
+    <input type="text" id="bottle" placeholder="ボトル名"><br>
+    <input type="text" id="account" placeholder="口座"><br>
+    <textarea id="note" placeholder="備考" rows="2" cols="40"></textarea><br>
+    <button onclick="addEntry()">登録</button>
+  </div>
+
+  <script>
+    const listDiv = document.getElementById("list");
+    let editStates = [];
+
+    function showSection(id) {
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+
+      document.getElementById(id).classList.add('active');
+      event.target.classList.add('active');
+
+      if (id === "search") {
+        loadEntries();
+      }
+    }
+
+    function loadEntries() {
+      listDiv.innerHTML = "";
+      const search = document.getElementById("searchInput")?.value.toLowerCase() || "";
+      const entries = JSON.parse(localStorage.getItem("bottles") || "[]");
+
+      entries.forEach((entry, index) => {
+        if (!entry.name.toLowerCase().includes(search)) return;
+
+        const isEditing = editStates[index] || false;
+        const div = document.createElement("div");
+        div.className = "entry";
+
+        if (isEditing) {
+          div.innerHTML = `
+            名前: <input type="text" id="nameInput-${index}" value="${entry.name}"><br>
+            ボトル名: <input type="text" id="bottleInput-${index}" value="${entry.bottle}"><br>
+            口座: <input type="text" id="accountInput-${index}" value="${entry.account || ''}" placeholder="なし"><br>
+            備考: <input type="text" id="noteInput-${index}" value="${entry.note || ''}" placeholder="なし"><br>
+            最終来店日: ${entry.visitDate || '未記入'}
+            <input type="date" id="visitInput-${index}">
+            <button onclick="submitAllUpdates(${index})">保存</button>
+          `;
+        } else {
+          div.innerHTML = `
+            名前: ${entry.name}<br>
+            ボトル名: ${entry.bottle}<br>
+            口座: ${entry.account || 'なし'}<br>
+            備考: ${entry.note || 'なし'}<br>
+            最終来店日: ${entry.visitDate || '未記入'}
+            <button onclick="toggleEdit(${index})" style="float:right;">編集</button>
+          `;
+        }
+
+        const del = document.createElement("span");
+        del.textContent = "削除";
+        del.className = "delete-btn";
+        del.onclick = () => deleteEntry(index);
+        div.appendChild(del);
+        listDiv.appendChild(div);
+      });
+    }
+
+    function toggleEdit(index) {
+      editStates[index] = true;
+      loadEntries();
+    }
+
+    function submitAllUpdates(index) {
+      const entries = JSON.parse(localStorage.getItem("bottles") || "[]");
+
+      const name = document.getElementById(`nameInput-${index}`).value.trim();
+      const bottle = document.getElementById(`bottleInput-${index}`).value.trim();
+      const account = document.getElementById(`accountInput-${index}`).value.trim();
+      const note = document.getElementById(`noteInput-${index}`).value.trim();
+      const visitDate = document.getElementById(`visitInput-${index}`).value;
+
+      if (!name || !bottle) return alert("名前とボトル名を入力してください");
+
+      entries[index] = { name, bottle, account, note, visitDate };
+      localStorage.setItem("bottles", JSON.stringify(entries));
+      editStates[index] = false;
+      loadEntries();
+    }
+
+    function addEntry() {
+      const name = document.getElementById("name").value.trim();
+      const bottle = document.getElementById("bottle").value.trim();
+      const account = document.getElementById("account").value.trim();
+      const note = document.getElementById("note").value.trim();
+      const visitDate = ""; // initialize as empty string
+
+      if (!name || !bottle) return alert("名前とボトル名を入力してください");
+
+      const entries = JSON.parse(localStorage.getItem("bottles") || "[]");
+      entries.push({ name, bottle, account, note, visitDate });
+      localStorage.setItem("bottles", JSON.stringify(entries));
+
+      document.getElementById("name").value = "";
+      document.getElementById("bottle").value = "";
+      document.getElementById("account").value = "";
+      document.getElementById("note").value = "";
+
+      showSection("search");
+      loadEntries();
+    }
+
+    function deleteEntry(index) {
+      if (!confirm("本当に削除しますか？")) return;
+      const entries = JSON.parse(localStorage.getItem("bottles") || "[]");
+      entries.splice(index, 1);
+      localStorage.setItem("bottles", JSON.stringify(entries));
+      loadEntries();
+    }
+
+    // 初期表示
+    loadEntries();
+  </script>
+</body>
+</html>
