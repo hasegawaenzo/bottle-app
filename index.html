@@ -27,6 +27,21 @@
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"></script>
+  <script>
+  /* global firebase */
+
+  // Firebase初期化
+  const firebaseConfig = {
+    apiKey: "AIzaSyDAHavEv8va5f9W-6Tl7UGwLs_27-Vm7yU",
+    authDomain: "bottle-app-ad02e.firebaseapp.com",
+    projectId: "bottle-app-ad02e",
+    storageBucket: "bottle-app-ad02e.firebasestorage.app",
+    messagingSenderId: "92055103267",
+    appId: "1:92055103267:web:4bff00001bd81dee9d0e96"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  </script>
 </head>
 <body>
   <h1>ボトル管理（共有版）</h1>
@@ -52,21 +67,6 @@
     <input type="date" id="visitDate"><br>
     <button onclick="addEntry()">登録</button>
   </div>
-
-<script>
-  /* global firebase */
-
-  // Firebase初期化
-  const firebaseConfig = {
-    apiKey: "AIzaSyDAHavEv8va5f9W-6Tl7UGwLs_27-Vm7yU",
-    authDomain: "bottle-app-ad02e.firebaseapp.com",
-    projectId: "bottle-app-ad02e",
-    storageBucket: "bottle-app-ad02e.firebasestorage.app",
-    messagingSenderId: "92055103267",
-    appId: "1:92055103267:web:4bff00001bd81dee9d0e96"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
 
   const listDiv = document.getElementById("list");
   let editStates = {}; // idをキーに編集状態を管理
