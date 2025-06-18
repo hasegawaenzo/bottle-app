@@ -1,53 +1,41 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ボトル管理</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ボトル管理（共有版）</title>
   <style>
     body { font-family: sans-serif; padding: 20px; background: #f2f2f2; }
-    input, button, textarea { padding: 8px; margin: 5px; }
-    input, button, textarea {
-      font-size: 16px;
-    }
-    .entry { background: white; padding: 10px; margin: 5px 0; border-radius: 5px; }
+    input, button, textarea { padding: 8px; margin: 5px; font-size: 16px; }
+    .entry { background: white; padding: 10px; margin: 5px 0; border-radius: 5px; position: relative; }
     .delete-btn { color: red; cursor: pointer; margin-left: 10px; }
     textarea { vertical-align: middle; resize: vertical; }
-
     .tab-btn { padding: 10px 20px; cursor: pointer; border: none; background: #ccc; }
     .tab-btn.active { background: #666; color: white; }
-
     .section { display: none; }
     .section.active { display: block; margin-top: 20px; }
-
     @media (max-width: 600px) {
-      input, button, textarea {
-        width: 100%;
-        box-sizing: border-box;
-        margin: 8px 0;
-      }
-
-      .tab-btn {
-        width: 50%;
-        font-size: 16px;
-      }
-
-      .entry {
-        font-size: 16px;
-      }
+      input, button, textarea { width: 100%; box-sizing: border-box; margin: 8px 0; }
+      .tab-btn { width: 50%; font-size: 16px; }
+      .entry { font-size: 16px; }
     }
+    button.save-btn { position: absolute; top: 8px; right: 60px; }
+    button.edit-btn { position: absolute; top: 8px; right: 120px; }
+    button.delete-btn { position: absolute; top: 8px; right: 10px; }
   </style>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js"></script>
 </head>
 <body>
-  <h1>ボトル管理</h1>
+  <h1>ボトル管理（共有版）</h1>
 
-  <!-- タブ切り替えボタン -->
   <div>
     <button class="tab-btn active" onclick="showSection('search')">🔍 検索</button>
     <button class="tab-btn" onclick="showSection('register')">📝 登録</button>
   </div>
 
-  <!-- 検索画面 -->
   <div id="search" class="section active">
     <h3>お客様で検索</h3>
     <input type="text" id="searchInput" placeholder="名前で検索" oninput="loadEntries()">
@@ -55,128 +43,149 @@
     <div id="list"></div>
   </div>
 
-  <!-- 登録画面 -->
   <div id="register" class="section">
     <h3>新規登録</h3>
     <input type="text" id="name" placeholder="お客様の名前"><br>
     <input type="text" id="bottle" placeholder="ボトル名"><br>
     <input type="text" id="account" placeholder="口座"><br>
-    <textarea id="note" placeholder="備考" rows="2" cols="40"></textarea><br>
+    <textarea id="note" placeholder="備考" rows="2"></textarea><br>
+    <input type="date" id="visitDate"><br>
     <button onclick="addEntry()">登録</button>
   </div>
 
-  <script>
-    const listDiv = document.getElementById("list");
-    let editStates = [];
+<script>
+  /* global firebase */
 
-    function showSection(id) {
-      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  // Firebase初期化
+  const firebaseConfig = {
+    apiKey: "AIzaSyDAHavEv8va5f9W-6Tl7UGwLs_27-Vm7yU",
+    authDomain: "bottle-app-ad02e.firebaseapp.com",
+    projectId: "bottle-app-ad02e",
+    storageBucket: "bottle-app-ad02e.firebasestorage.app",
+    messagingSenderId: "92055103267",
+    appId: "1:92055103267:web:4bff00001bd81dee9d0e96"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
 
-      document.getElementById(id).classList.add('active');
-      event.target.classList.add('active');
+  const listDiv = document.getElementById("list");
+  let editStates = {}; // idをキーに編集状態を管理
 
-      if (id === "search") {
-        loadEntries();
-      }
-    }
+  function showSection(id) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    event.target.classList.add('active');
+    if (id === "search") loadEntries();
+  }
 
-    function loadEntries() {
+  // Firestoreのデータをリアルタイムに取得して表示
+  function loadEntries() {
+    const search = document.getElementById("searchInput").value.toLowerCase();
+    db.collection("bottles").orderBy("name").onSnapshot(snapshot => {
       listDiv.innerHTML = "";
-      const search = document.getElementById("searchInput")?.value.toLowerCase() || "";
-      const entries = JSON.parse(localStorage.getItem("bottles") || "[]");
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const id = doc.id;
+        if (!data.name.toLowerCase().includes(search)) return;
 
-      entries.forEach((entry, index) => {
-        if (!entry.name.toLowerCase().includes(search)) return;
-
-        const isEditing = editStates[index] || false;
+        const isEditing = editStates[id] || false;
         const div = document.createElement("div");
         div.className = "entry";
 
         if (isEditing) {
           div.innerHTML = `
-            名前: <input type="text" id="nameInput-${index}" value="${entry.name}"><br>
-            ボトル名: <input type="text" id="bottleInput-${index}" value="${entry.bottle}"><br>
-            口座: <input type="text" id="accountInput-${index}" value="${entry.account || ''}" placeholder="なし"><br>
-            備考: <input type="text" id="noteInput-${index}" value="${entry.note || ''}" placeholder="なし"><br>
-            最終来店日: ${entry.visitDate || '未記入'}
-            <input type="date" id="visitInput-${index}">
-            <button onclick="submitAllUpdates(${index})">保存</button>
+            名前: <input type="text" id="nameInput-${id}" value="${data.name}"><br>
+            ボトル名: <input type="text" id="bottleInput-${id}" value="${data.bottle}"><br>
+            口座: <input type="text" id="accountInput-${id}" value="${data.account || ''}" placeholder="なし"><br>
+            備考: <input type="text" id="noteInput-${id}" value="${data.note || ''}" placeholder="なし"><br>
+            最終来店日: ${data.visitDate || '未記入'}
+            <input type="date" id="visitInput-${id}" value="${data.visitDate || ''}"><br>
+            <button class="save-btn" onclick="submitAllUpdates('${id}')">保存</button>
+            <button class="delete-btn" onclick="confirmDelete('${id}')">削除</button>
           `;
         } else {
           div.innerHTML = `
-            名前: ${entry.name}<br>
-            ボトル名: ${entry.bottle}<br>
-            口座: ${entry.account || 'なし'}<br>
-            備考: ${entry.note || 'なし'}<br>
-            最終来店日: ${entry.visitDate || '未記入'}
-            <button onclick="toggleEdit(${index})" style="float:right;">編集</button>
+            名前: ${data.name}<br>
+            ボトル名: ${data.bottle}<br>
+            口座: ${data.account || 'なし'}<br>
+            備考: ${data.note || 'なし'}<br>
+            最終来店日: ${data.visitDate || '未記入'}
+            <button class="edit-btn" onclick="toggleEdit('${id}')">編集</button>
+            <button class="delete-btn" onclick="confirmDelete('${id}')">削除</button>
           `;
         }
 
-        const del = document.createElement("span");
-        del.textContent = "削除";
-        del.className = "delete-btn";
-        del.onclick = () => deleteEntry(index);
-        div.appendChild(del);
         listDiv.appendChild(div);
       });
+    });
+  }
+
+  function toggleEdit(id) {
+    editStates[id] = true;
+    loadEntries();
+  }
+
+  async function submitAllUpdates(id) {
+    const name = document.getElementById(`nameInput-${id}`).value.trim();
+    const bottle = document.getElementById(`bottleInput-${id}`).value.trim();
+    const account = document.getElementById(`accountInput-${id}`).value.trim();
+    const note = document.getElementById(`noteInput-${id}`).value.trim();
+    const visitDate = document.getElementById(`visitInput-${id}`).value;
+
+    if (!name || !bottle) {
+      alert("名前とボトル名を入力してください");
+      return;
     }
 
-    function toggleEdit(index) {
-      editStates[index] = true;
+    try {
+      await db.collection("bottles").doc(id).update({ name, bottle, account, note, visitDate });
+      editStates[id] = false;
       loadEntries();
+    } catch (e) {
+      alert("更新に失敗しました: " + e.message);
+    }
+  }
+
+  async function addEntry() {
+    const name = document.getElementById("name").value.trim();
+    const bottle = document.getElementById("bottle").value.trim();
+    const account = document.getElementById("account").value.trim();
+    const note = document.getElementById("note").value.trim();
+    const visitDate = document.getElementById("visitDate").value;
+
+    if (!name || !bottle) {
+      alert("名前とボトル名を入力してください");
+      return;
     }
 
-    function submitAllUpdates(index) {
-      const entries = JSON.parse(localStorage.getItem("bottles") || "[]");
-
-      const name = document.getElementById(`nameInput-${index}`).value.trim();
-      const bottle = document.getElementById(`bottleInput-${index}`).value.trim();
-      const account = document.getElementById(`accountInput-${index}`).value.trim();
-      const note = document.getElementById(`noteInput-${index}`).value.trim();
-      const visitDate = document.getElementById(`visitInput-${index}`).value;
-
-      if (!name || !bottle) return alert("名前とボトル名を入力してください");
-
-      entries[index] = { name, bottle, account, note, visitDate };
-      localStorage.setItem("bottles", JSON.stringify(entries));
-      editStates[index] = false;
-      loadEntries();
-    }
-
-    function addEntry() {
-      const name = document.getElementById("name").value.trim();
-      const bottle = document.getElementById("bottle").value.trim();
-      const account = document.getElementById("account").value.trim();
-      const note = document.getElementById("note").value.trim();
-      const visitDate = ""; // initialize as empty string
-
-      if (!name || !bottle) return alert("名前とボトル名を入力してください");
-
-      const entries = JSON.parse(localStorage.getItem("bottles") || "[]");
-      entries.push({ name, bottle, account, note, visitDate });
-      localStorage.setItem("bottles", JSON.stringify(entries));
-
+    try {
+      await db.collection("bottles").add({ name, bottle, account, note, visitDate });
+      // フォームクリア
       document.getElementById("name").value = "";
       document.getElementById("bottle").value = "";
       document.getElementById("account").value = "";
       document.getElementById("note").value = "";
+      document.getElementById("visitDate").value = "";
 
       showSection("search");
       loadEntries();
+    } catch (e) {
+      alert("登録に失敗しました: " + e.message);
     }
+  }
 
-    function deleteEntry(index) {
-      if (!confirm("本当に削除しますか？")) return;
-      const entries = JSON.parse(localStorage.getItem("bottles") || "[]");
-      entries.splice(index, 1);
-      localStorage.setItem("bottles", JSON.stringify(entries));
-      loadEntries();
+  async function confirmDelete(id) {
+    if (!confirm("本当に削除しますか？")) return;
+    try {
+      await db.collection("bottles").doc(id).delete();
+    } catch (e) {
+      alert("削除に失敗しました: " + e.message);
     }
+  }
 
-    // 初期表示
-    loadEntries();
-  </script>
+  // 初期表示
+  loadEntries();
+</script>
 </body>
 </html>
