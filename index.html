@@ -32,12 +32,13 @@
 
   // Firebase初期化
   const firebaseConfig = {
-    apiKey: "AIzaSyDAHavEv8va5f9W-6Tl7UGwLs_27-Vm7yU",
-    authDomain: "bottle-app-ad02e.firebaseapp.com",
-    projectId: "bottle-app-ad02e",
-    storageBucket: "bottle-app-ad02e.firebasestorage.app",
-    messagingSenderId: "92055103267",
-    appId: "1:92055103267:web:4bff00001bd81dee9d0e96"
+    apiKey: "AIzaSyBXkeUYwHGq-aORnzEnLQBZima4aLLTmkU",
+    authDomain: "botlle-app.firebaseapp.com",
+    projectId: "botlle-app",
+    storageBucket: "botlle-app.firebasestorage.app",
+    messagingSenderId: "803761027219",
+    appId: "1:803761027219:web:905e9dbff6f6863e2a7566",
+    measurementId: "G-ZJ20JD1MPK"
   };
   firebase.initializeApp(firebaseConfig);
   const db = firebase.firestore();
@@ -69,6 +70,7 @@
   </div>
 
 <script>
+window.addEventListener("DOMContentLoaded", function() {
   const listDiv = document.getElementById("list");
   let editStates = {}; // idをキーに編集状態を管理
 
@@ -122,10 +124,14 @@
     });
   }
 
+  window.showSection = showSection;
+
   function toggleEdit(id) {
     editStates[id] = true;
     loadEntries();
   }
+
+  window.toggleEdit = toggleEdit;
 
   async function submitAllUpdates(id) {
     const name = document.getElementById(`nameInput-${id}`).value.trim();
@@ -147,6 +153,8 @@
       alert("更新に失敗しました: " + e.message);
     }
   }
+
+  window.submitAllUpdates = submitAllUpdates;
 
   async function addEntry() {
     const name = document.getElementById("name").value.trim();
@@ -176,6 +184,8 @@
     }
   }
 
+  window.addEntry = addEntry;
+
   async function confirmDelete(id) {
     if (!confirm("本当に削除しますか？")) return;
     try {
@@ -185,8 +195,11 @@
     }
   }
 
+  window.confirmDelete = confirmDelete;
+
   // 初期表示
   loadEntries();
+});
 </script>
 </body>
 </html>
